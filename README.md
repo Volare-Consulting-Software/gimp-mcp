@@ -7,18 +7,34 @@ Desktop, Claude Code, and any other MCP client) edit images with
 Unlike most GIMP MCP servers, `gimp-mcp`:
 
 - is a plain **npm package** — run it with `npx gimp-mcp`, no Python environment;
-- needs **no custom GIMP plug-in** and **no running GIMP window** — it drives GIMP's
-  built-in headless console (`gimp-console`) in batch mode, one operation at a time;
+- needs **no custom GIMP plug-in** — it drives GIMP's built-in headless **Script-Fu
+  server**, keeping one GIMP process alive as a **live session**;
 - works on **Windows, macOS, and Linux**, and points you to the right installer if GIMP
   isn't present (`gimp_doctor` / `install_gimp`).
 
-Each tool loads an image from disk, performs an operation, and writes the result back
-to disk. It is stateless and file-in / file-out by design.
+The tools are **atomic GIMP operations** — the same single actions a person performs in
+the GIMP UI (open an image, add an alpha channel, fuzzy-select, clear, add a text layer,
+scale, export, …). The assistant composes them, and **all state persists between calls**
+(open images, selections, layers, colours) — exactly like working in GIMP. There are no
+"do-everything" wrapper tools.
+
+Example — make a logo's background transparent and caption it, the way you would in GIMP:
+
+```
+open_image("logo.png")            -> image 1
+add_alpha_channel(1)
+fuzzy_select(1, x=4, y=4, threshold=0.2)   # magic-wand the corner background
+edit_clear(1)                     # erase it to transparency
+select_none(1)
+add_text_layer(1, "Super Diego", font="Times New Roman", x=430, y=672)
+merge_visible(1)                  # keep the alpha channel
+export_image(1, "logo_final.png")
+```
 
 ## Requirements
 
 - **Node.js ≥ 18**
-- **GIMP 2.10 or 3.x** installed (verified against GIMP 3.2). See
+- **GIMP 3.x** installed (verified against GIMP 3.2; the tools use the GIMP 3.0 PDB). See
   [Installing GIMP](#installing-gimp).
 
 ## Quick start
@@ -80,85 +96,72 @@ If your GIMP is elsewhere, set `GIMP_CONSOLE_PATH` to the full path of the
 
 ## Tools
 
-All 42 tools below are verified end-to-end against GIMP 3.2.
+Each tool is one GIMP operation. Tools that act on a layer take a `layerId` (from
+`get_image_info`) and default to the image's top layer when omitted. All verified against
+GIMP 3.2.
 
-**Setup & info**
+**Setup & session** — `gimp_doctor`, `gimp_version`, `install_gimp` (instructions only),
+`end_session` (reset the live GIMP process).
 
-- `gimp_doctor` — detect GIMP; report path/version or install guidance.
-- `gimp_version` — report the located GIMP version.
-- `install_gimp` — print install instructions for this OS (does not install anything).
-- `get_image_info` — dimensions, base type, precision, layer count.
-- `list_fonts` — list fonts available to GIMP (optionally filtered by a regex).
+**Images** — `open_image`, `new_image`, `export_image`, `duplicate_image`, `close_image`,
+`list_images`, `get_image_info`, `list_fonts`.
 
-**Convert & export** — `convert_format`, `export_as`, `make_thumbnail`,
-`batch_convert` (whole folder).
+**Selection** — `select_all`, `select_none`, `select_invert`, `select_rectangle`,
+`select_ellipse`, `select_by_color`, `fuzzy_select` (magic wand), `select_grow`,
+`select_shrink`, `select_feather`. Selection tools take a `mode` (replace/add/subtract/
+intersect).
 
-**Geometry** — `resize`, `scale_to_fit`, `crop`, `rotate`, `flip`.
+**Edit & context** — `edit_clear`, `edit_fill`, `bucket_fill`, `set_foreground`,
+`set_background`, `set_sample_threshold`, `set_opacity`.
 
-**Color & tone** — `brightness_contrast`, `levels`, `gamma`, `hue_saturation`,
-`color_balance`, `desaturate`, `grayscale`, `invert`, `posterize`, `threshold`,
-`stretch_contrast`.
+**Layers** — `add_alpha_channel`, `new_layer`, `add_layer_from_file`, `add_text_layer`
+(with `font` — see `list_fonts`), `set_layer_opacity`, `set_layer_offsets`,
+`delete_layer`, `merge_visible` (keeps alpha), `flatten` (drops alpha).
 
-**Filters** (GEGL) — `gaussian_blur`, `sharpen`, `median_blur`, `pixelize`, `oilify`,
-`emboss`, `edge_detect`, `add_noise`.
+**Transform** — `scale_image`, `crop_image`, `resize_canvas`, `rotate_image`,
+`flip_image`.
 
-**Compose** — `add_text`, `watermark_text` (both take an optional `font` — see
-`list_fonts`), `watermark_image`, `overlay_image`, `add_border`, `flatten`.
+**Colour & filters** — `brightness_contrast`, `levels`, `hue_saturation`,
+`color_balance`, `desaturate`, `invert`, `posterize`, `threshold`, `convert_grayscale`,
+and `apply_gegl_filter` — the **generic** filter tool (any `gegl:*` operation with its
+properties, e.g. `gegl:gaussian-blur` `{ "std-dev-x": 5, "std-dev-y": 5 }`).
 
-**Transparency** — `make_transparent` (knock out a solid background colour to alpha),
-`add_alpha`. Save to `.png`/`.webp` to keep transparency. Tools that composite (text,
-watermarks) preserve an existing alpha channel.
-
-**Escape hatch** — `run_script_fu` — evaluate arbitrary Script-Fu (Scheme) for anything
-not covered above.
-
-Most tools take an `inputPath` and an optional `outputPath`. **If `outputPath` is
-omitted, the input file is overwritten.** Output format is chosen from the file
-extension (`.png`, `.jpg`, `.webp`, `.tiff`, `.bmp`, …).
-
-> Built for **GIMP 3.x** (the Script-Fu calls use the GIMP 3.0 PDB — GEGL filters,
-> `gimp-image-get-width`, list-based return values, etc.). Fonts are selectable by name
-> via `list_fonts` + the `font` parameter. PDB-discovery tools and per-format quality
-> controls are planned follow-ups.
+**Escape hatch** — `run_script_fu` — evaluate arbitrary Script-Fu in the same live
+session, mixing freely with the tools above.
 
 ## How it works
 
-For each operation the server spawns:
+On first use the server starts one `gimp-console` running GIMP's built-in Script-Fu TCP
+server and connects to it. Each tool sends a single Script-Fu (PDB) command over the
+socket and reads the result; the GIMP process stays alive, so every open image,
+selection, and layer **persists between tool calls** — a true session, not file-in /
+file-out. See the [GIMP manual](https://www.gimp.org/man/gimp.html) and the
+[Script-Fu server docs](https://developer.gimp.org/resource/script-fu/).
 
-```
-gimp-console -i -d -f --batch-interpreter=plug-in-script-fu-eval \
-  -b "(<load → operate → export>)" -b "(gimp-quit 0)"
-```
-
-`-i` no interface, `-d` no data, `-f` no fonts (fast startup); the trailing
-`(gimp-quit 0)` guarantees the process exits. See the
-[GIMP manual](https://www.gimp.org/man/gimp.html) and the
-[batch-mode docs](https://docs.gimp.org/3.0/en/gimp-fire-up.html).
-
-> **First-run note:** the very first batch launch on a freshly installed GIMP registers
-> every plug-in (writing `pluginrc`) and can take **several minutes on Windows** — long
-> enough that an MCP client may report a timeout on the first tool call. To avoid this,
-> **launch the GIMP GUI once after installing** (or run `gimp_version`) to pre-build the
-> caches. After that, each operation is a quick cold start (a few seconds). GIMP
-> invocations are serialised, so concurrent tool calls run one at a time.
+> **First-start note:** the very first session start on a freshly installed GIMP registers
+> every plug-in and loads all data/fonts — **30-60s on Windows** (longer on a cold cache).
+> The server is started eagerly when the MCP launches to hide this, but the first tool call
+> may still wait. After that, operations are near-instant (~10 ms each). Launching the GIMP
+> GUI once after install also warms the caches.
 
 ## Development
 
 ```bash
 npm install
-npm run build           # tsc -> dist/
-npm test                # vitest unit tests
+npm run build            # tsc -> dist/
+npm test                 # vitest unit tests
 npm run typecheck
-node scripts/smoke.mjs   # list tools + run gimp_doctor against the built server
-node scripts/verify.mjs  # full image-op battery (requires GIMP installed)
+node scripts/smoke.mjs    # list tools + run gimp_doctor against the built server
+node scripts/refine.mjs   # end-to-end: open a logo, knock out bg, add a caption (needs GIMP)
 ```
 
 ## Configuration
 
-| Variable            | Purpose                                                 |
-| ------------------- | ------------------------------------------------------- |
-| `GIMP_CONSOLE_PATH` | Full path to `gimp-console` if it isn't auto-detected.  |
-| `GIMP_MCP_DEBUG`    | Set to `1` to log spawned commands to stderr.           |
+| Variable            | Purpose                                                  |
+| ------------------- | -------------------------------------------------------- |
+| `GIMP_CONSOLE_PATH` | Full path to `gimp-console` if it isn't auto-detected.   |
+| `GIMP_MCP_PORT`     | TCP port for the Script-Fu session (default `10008`).    |
+| `GIMP_MCP_DEBUG`    | Set to `1` to log every Script-Fu command to stderr.     |
 
 ## License
 
