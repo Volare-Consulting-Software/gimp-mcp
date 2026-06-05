@@ -1,0 +1,63 @@
+{
+  "name": "gimp-mcp",
+  "version": "0.3.0",
+  "description": "MCP server for GIMP — drive GIMP image editing from AI assistants over the Model Context Protocol",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "gimp",
+    "image-editing",
+    "script-fu",
+    "claude",
+    "ai"
+  ],
+  "license": "MIT",
+  "author": "Volare Consulting",
+  "homepage": "https://github.com/Volare-Consulting-Software/gimp-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Volare-Consulting-Software/gimp-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Volare-Consulting-Software/gimp-mcp/issues"
+  },
+  "type": "module",
+  "bin": {
+    "gimp-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "prebuild": "npm run clean",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@types/node": "^22.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
