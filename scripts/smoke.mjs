@@ -18,12 +18,9 @@ const doctor = await client.callTool({ name: "gimp_doctor", arguments: {} });
 console.log("\n--- gimp_doctor ---");
 console.log(doctor.content.map((c) => c.text).join("\n"));
 
-const preview = await client.callTool({
-  name: "install_gimp",
-  arguments: { confirm: false },
-});
-console.log("\n--- install_gimp (preview) ---");
-console.log(preview.content.map((c) => c.text).join("\n"));
+const install = await client.callTool({ name: "install_gimp", arguments: {} });
+console.log("\n--- install_gimp (instructions) ---");
+console.log(install.content.map((c) => c.text).join("\n"));
 
 await client.close();
 process.exit(0);

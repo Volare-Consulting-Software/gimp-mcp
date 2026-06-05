@@ -33,7 +33,7 @@ export_image(1, "logo_final.png")
 
 ## Requirements
 
-- **Node.js ≥ 18**
+- **Node.js ≥ 20**
 - **GIMP 3.x** installed (verified against GIMP 3.2; the tools use the GIMP 3.0 PDB). See
   [Installing GIMP](#installing-gimp).
 
@@ -144,6 +144,24 @@ file-out. See the [GIMP manual](https://www.gimp.org/man/gimp.html) and the
 > may still wait. After that, operations are near-instant (~10 ms each). Launching the GIMP
 > GUI once after install also warms the caches.
 
+Commands are **serialized** — each runs to completion before the next starts — so the
+stateful session never desyncs even when a client dispatches tool calls concurrently.
+
+If the GIMP process exits mid-session (crash, a `(gimp-quit)`, or a command that exceeds the
+120s timeout), the session tears down and **restarts automatically on the next tool call** —
+but any images, selections, and layers from before the restart are gone, so previously
+returned image/layer IDs become invalid. Re-open your images and continue. `end_session`
+resets the session deliberately.
+
+## Security
+
+This server runs GIMP with the privileges of the user who launched it, and exposes
+`run_script_fu`, which evaluates **arbitrary Script-Fu (Scheme)** in the live session.
+Script-Fu can read and write files anywhere the user can and can invoke plug-ins, so a
+connected MCP client effectively has the user's filesystem access. Only connect MCP clients
+you trust, and treat any model output that reaches `run_script_fu` as code, not data. See
+[`SECURITY.md`](SECURITY.md).
+
 ## Development
 
 ```bash
@@ -151,17 +169,18 @@ npm install
 npm run build            # tsc -> dist/
 npm test                 # vitest unit tests
 npm run typecheck
+npm run lint
 node scripts/smoke.mjs    # list tools + run gimp_doctor against the built server
-node scripts/refine.mjs   # end-to-end: open a logo, knock out bg, add a caption (needs GIMP)
 ```
 
 ## Configuration
 
 | Variable            | Purpose                                                  |
 | ------------------- | -------------------------------------------------------- |
-| `GIMP_CONSOLE_PATH` | Full path to `gimp-console` if it isn't auto-detected.   |
-| `GIMP_MCP_PORT`     | TCP port for the Script-Fu session (default `10008`).    |
-| `GIMP_MCP_DEBUG`    | Set to `1` to log every Script-Fu command to stderr.     |
+| `GIMP_CONSOLE_PATH`   | Full path to `gimp-console` if it isn't auto-detected.        |
+| `GIMP_MCP_PORT`       | TCP port for the Script-Fu session (default `10008`).         |
+| `GIMP_MCP_TIMEOUT_MS` | Timeout for one-shot console calls like `gimp_version` (default `240000`). |
+| `GIMP_MCP_DEBUG`      | Set to `1` to log every Script-Fu command to stderr.          |
 
 ## License
 
