@@ -80,7 +80,7 @@ If your GIMP is elsewhere, set `GIMP_CONSOLE_PATH` to the full path of the
 
 ## Tools
 
-All 34 tools below are verified end-to-end against GIMP 3.2.
+All 42 tools below are verified end-to-end against GIMP 3.2.
 
 **Setup & info**
 
@@ -88,6 +88,7 @@ All 34 tools below are verified end-to-end against GIMP 3.2.
 - `gimp_version` — report the located GIMP version.
 - `install_gimp` — print install instructions for this OS (does not install anything).
 - `get_image_info` — dimensions, base type, precision, layer count.
+- `list_fonts` — list fonts available to GIMP (optionally filtered by a regex).
 
 **Convert & export** — `convert_format`, `export_as`, `make_thumbnail`,
 `batch_convert` (whole folder).
@@ -101,8 +102,12 @@ All 34 tools below are verified end-to-end against GIMP 3.2.
 **Filters** (GEGL) — `gaussian_blur`, `sharpen`, `median_blur`, `pixelize`, `oilify`,
 `emboss`, `edge_detect`, `add_noise`.
 
-**Compose** — `add_text`, `watermark_text`, `watermark_image`, `overlay_image`,
-`add_border`, `flatten`.
+**Compose** — `add_text`, `watermark_text` (both take an optional `font` — see
+`list_fonts`), `watermark_image`, `overlay_image`, `add_border`, `flatten`.
+
+**Transparency** — `make_transparent` (knock out a solid background colour to alpha),
+`add_alpha`. Save to `.png`/`.webp` to keep transparency. Tools that composite (text,
+watermarks) preserve an existing alpha channel.
 
 **Escape hatch** — `run_script_fu` — evaluate arbitrary Script-Fu (Scheme) for anything
 not covered above.
@@ -112,8 +117,9 @@ omitted, the input file is overwritten.** Output format is chosen from the file
 extension (`.png`, `.jpg`, `.webp`, `.tiff`, `.bmp`, …).
 
 > Built for **GIMP 3.x** (the Script-Fu calls use the GIMP 3.0 PDB — GEGL filters,
-> `gimp-image-get-width`, list-based return values, etc.). `add_text` uses GIMP's current
-> default font. PDB-discovery tools and per-format quality controls are planned follow-ups.
+> `gimp-image-get-width`, list-based return values, etc.). Fonts are selectable by name
+> via `list_fonts` + the `font` parameter. PDB-discovery tools and per-format quality
+> controls are planned follow-ups.
 
 ## How it works
 

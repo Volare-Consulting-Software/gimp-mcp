@@ -74,6 +74,13 @@ export interface LoadOpSaveSpec {
   op?: string;
   /** Flatten before export (default true). Disable for formats that keep layers. */
   flatten?: boolean;
+  /**
+   * Preserve transparency: instead of flattening (which fills with the
+   * background colour and drops alpha), merge visible layers keeping the alpha
+   * channel. Use for tools that must not destroy transparency (e.g. text on a
+   * transparent logo, make_transparent).
+   */
+  preserveAlpha?: boolean;
 }
 
 /**
@@ -87,12 +94,21 @@ export function buildLoadOpSave(spec: LoadOpSaveSpec): string {
   const flatten = spec.flatten !== false;
   const input = str(inputPath);
 
+  // Merge visible layers keeping alpha (only meaningful with >1 layer);
+  // otherwise flatten (fills with bg, drops alpha) unless flatten is disabled.
+  const finalize = spec.preserveAlpha
+    ? "  (if (> (vector-length (car (gimp-image-get-layers image))) 1)" +
+      " (gimp-image-merge-visible-layers image CLIP-TO-IMAGE) #t)"
+    : flatten
+      ? "  (gimp-image-flatten image)"
+      : "";
+
   return [
     "(let* (",
     `  (image (car (gimp-file-load RUN-NONINTERACTIVE ${input} ${input})))`,
     `  (drawable ${ACTIVE_DRAWABLE}))`,
     op ? `  ${op}` : "",
-    flatten ? "  (gimp-image-flatten image)" : "",
+    finalize,
     `  ${exportExpr(outputPath)}`,
     "  (gimp-image-delete image))",
   ]

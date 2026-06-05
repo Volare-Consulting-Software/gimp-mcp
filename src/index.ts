@@ -11,6 +11,7 @@ import { registerGeometryTools } from "./tools/geometry.js";
 import { registerInfoTools } from "./tools/info.js";
 import { registerRawTools } from "./tools/raw.js";
 import { registerSetupTools } from "./tools/setup.js";
+import { registerTransparencyTools } from "./tools/transparency.js";
 import { logger } from "./util/logger.js";
 
 const VERSION = "0.1.0";
@@ -25,6 +26,7 @@ async function main(): Promise<void> {
   registerColorTools(server);
   registerFilterTools(server);
   registerComposeTools(server);
+  registerTransparencyTools(server);
   registerRawTools(server);
 
   // Best-effort detection at startup, purely informational (never blocks).

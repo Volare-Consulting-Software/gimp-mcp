@@ -10,6 +10,29 @@ const positionSchema = z
   .default("bottom-right")
   .describe("Where to place the overlay relative to the image.");
 
+const fontSchema = z
+  .string()
+  .optional()
+  .describe(
+    "Font name (see the list_fonts tool). Matched case-sensitively as a regex against " +
+      "available fonts; the first match is used. If omitted or unmatched, GIMP's current " +
+      "default font is used.",
+  );
+
+/**
+ * Scheme expression resolving to a GimpFont object. GIMP 3.0 fonts are objects,
+ * not name strings, so we resolve a requested name via the regex-filtered font
+ * list and fall back to the context default.
+ */
+function fontExpr(fontName?: string): string {
+  if (!fontName || !fontName.trim()) return "(car (gimp-context-get-font))";
+  const escaped = fontName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return (
+    `(let ((m (car (gimp-fonts-get-list ${str(escaped)})))) ` +
+    "(if (> (vector-length m) 0) (vector-ref m 0) (car (gimp-context-get-font))))"
+  );
+}
+
 /** Build a Scheme cond that sets x/y for a positioned layer named `layerVar`. */
 function positionExpr(
   position: string,
@@ -38,8 +61,8 @@ export function registerComposeTools(server: McpServer): void {
     {
       title: "Add text",
       description:
-        "Draw text onto the image at (x, y) and flatten it in, using GIMP's current default " +
-        'font. Colour accepts #RRGGBB or "r,g,b".',
+        "Draw text onto the image at (x, y) and flatten it in. Choose a font with the " +
+        '`font` parameter (see list_fonts). Colour accepts #RRGGBB or "r,g,b".',
       inputSchema: {
         inputPath,
         outputPath,
@@ -48,19 +71,25 @@ export function registerComposeTools(server: McpServer): void {
         y: z.number().int().default(10),
         fontSize: z.number().positive().default(36),
         color: z.string().default("#000000").describe("Text colour (#RRGGBB or r,g,b)."),
+        font: fontSchema,
       },
     },
     async (args) =>
       guard(async () => {
         const op = [
-          `(let ((tl (car (gimp-text-layer-new image ${str(args.text)} (car (gimp-context-get-font)) ${num(
+          `(let ((tl (car (gimp-text-layer-new image ${str(args.text)} ${fontExpr(args.font)} ${num(
             args.fontSize,
           )} UNIT-PIXEL))))`,
           "  (gimp-image-insert-layer image tl 0 -1)",
           `  (gimp-text-layer-set-color tl ${colorList(args.color)})`,
           `  (gimp-layer-set-offsets tl ${num(args.x)} ${num(args.y)}))`,
         ].join("\n");
-        await runLoadOpSave({ inputPath: args.inputPath, outputPath: resolveOutput(args), op });
+        await runLoadOpSave({
+          inputPath: args.inputPath,
+          outputPath: resolveOutput(args),
+          op,
+          preserveAlpha: true,
+        });
         return `Added text -> ${resolveOutput(args)}`;
       }),
   );
@@ -71,13 +100,14 @@ export function registerComposeTools(server: McpServer): void {
       title: "Watermark with text",
       description:
         "Overlay semi-transparent text as a watermark at a chosen corner/center, then " +
-        "flatten, using GIMP's current default font. opacity is 0-100.",
+        "flatten. Choose a font with the `font` parameter (see list_fonts). opacity is 0-100.",
       inputSchema: {
         inputPath,
         outputPath,
         text: z.string(),
         fontSize: z.number().positive().default(36),
         color: z.string().default("#FFFFFF"),
+        font: fontSchema,
         opacity: z.number().min(0).max(100).default(50),
         position: positionSchema,
         margin: z.number().int().min(0).default(20),
@@ -86,7 +116,7 @@ export function registerComposeTools(server: McpServer): void {
     async (args) =>
       guard(async () => {
         const op = [
-          `(let ((tl (car (gimp-text-layer-new image ${str(args.text)} (car (gimp-context-get-font)) ${num(
+          `(let ((tl (car (gimp-text-layer-new image ${str(args.text)} ${fontExpr(args.font)} ${num(
             args.fontSize,
           )} UNIT-PIXEL))))`,
           "  (gimp-image-insert-layer image tl 0 -1)",
@@ -94,7 +124,12 @@ export function registerComposeTools(server: McpServer): void {
           `  ${positionExpr(args.position, "tl", args.margin)}`,
           `  (gimp-layer-set-opacity tl ${num(args.opacity)}))`,
         ].join("\n");
-        await runLoadOpSave({ inputPath: args.inputPath, outputPath: resolveOutput(args), op });
+        await runLoadOpSave({
+          inputPath: args.inputPath,
+          outputPath: resolveOutput(args),
+          op,
+          preserveAlpha: true,
+        });
         return `Added text watermark -> ${resolveOutput(args)}`;
       }),
   );

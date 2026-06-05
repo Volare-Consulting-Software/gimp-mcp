@@ -56,6 +56,7 @@ console.log(`get_image_info: ${info.ok ? "OK" : "FAIL"}\n${info.out}\n`);
 
 // 2) Battery of operations, each to its own output file.
 const cases = [
+  ["get_image_info", { inputPath: src }],
   ["resize", { inputPath: src, outputPath: join(OUT, "resize.png"), width: 100, height: 60 }],
   ["scale_to_fit", { inputPath: src, outputPath: join(OUT, "fit.png"), maxWidth: 80, maxHeight: 80 }],
   ["crop", { inputPath: src, outputPath: join(OUT, "crop.png"), width: 50, height: 50, offsetX: 10, offsetY: 10 }],
@@ -84,12 +85,16 @@ const cases = [
   ["emboss", { inputPath: src, outputPath: join(OUT, "emboss.png") }],
   ["edge_detect", { inputPath: src, outputPath: join(OUT, "edge.png"), amount: 2 }],
   ["add_noise", { inputPath: src, outputPath: join(OUT, "noise.png"), amount: 20 }],
+  ["list_fonts", { filter: "Sans" }],
   ["add_text", { inputPath: src, outputPath: join(OUT, "text.png"), text: "Hi", x: 10, y: 10, fontSize: 24, color: "#ffffff" }],
+  ["add_text", { inputPath: src, outputPath: join(OUT, "text_font.png"), text: "Hi", fontSize: 24, font: "Monospace" }],
   ["watermark_text", { inputPath: src, outputPath: join(OUT, "wmtext.png"), text: "(c)", opacity: 50, position: "bottom-right" }],
   ["watermark_image", { inputPath: src, outputPath: join(OUT, "wmimg.png"), watermarkPath: src, opacity: 40, position: "top-left" }],
   ["overlay_image", { inputPath: src, outputPath: join(OUT, "overlay.png"), overlayPath: src, x: 5, y: 5, opacity: 50 }],
   ["add_border", { inputPath: src, outputPath: join(OUT, "border.png"), width: 10, color: "#000000" }],
   ["flatten", { inputPath: src, outputPath: join(OUT, "flat.png") }],
+  ["add_alpha", { inputPath: src, outputPath: join(OUT, "alpha.png") }],
+  ["make_transparent", { inputPath: src, outputPath: join(OUT, "transp.png"), color: "60,120,200", threshold: 0.2 }],
 ];
 
 let pass = 0;
