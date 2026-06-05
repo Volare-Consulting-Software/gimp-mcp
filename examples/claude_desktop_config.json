@@ -2,7 +2,7 @@
   "mcpServers": {
     "gimp": {
       "command": "npx",
-      "args": ["-y", "gimp-mcp"]
+      "args": ["-y", "@volare-consulting/gimp-mcp"]
     }
   }
 }

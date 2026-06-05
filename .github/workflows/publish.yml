@@ -1,0 +1,23 @@
+name: Publish to npm
+
+# Release flow:
+#   1. Bump the version in package.json on a PR and merge to main.
+#   2. Tag the merge commit: `git tag v0.3.0 && git push origin v0.3.0`
+#      (the tag must equal the package.json version, or the job fails).
+# Pushing the tag runs the org's shared public-npm publish workflow
+# (Volare.Build), which builds, tests, and `npm publish --access public`.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    uses: Volare-Consulting-Software/Volare.Build/.github/workflows/publish-npm-public.yml@main
+    with:
+      node-version: "20"
+      build-command: "npm run build"
+      test-command: "npm test"
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -6,7 +6,8 @@ Desktop, Claude Code, and any other MCP client) edit images with
 
 Unlike most GIMP MCP servers, `gimp-mcp`:
 
-- is a plain **npm package** — run it with `npx gimp-mcp`, no Python environment;
+- is a plain **npm package** — run it with `npx @volare-consulting/gimp-mcp`, no Python
+  environment;
 - needs **no custom GIMP plug-in** — it drives GIMP's built-in headless **Script-Fu
   server**, keeping one GIMP process alive as a **live session**;
 - works on **Windows, macOS, and Linux**, and points you to the right installer if GIMP
@@ -48,7 +49,7 @@ Add the server to your MCP client. For **Claude Desktop**, edit
   "mcpServers": {
     "gimp": {
       "command": "npx",
-      "args": ["-y", "gimp-mcp"]
+      "args": ["-y", "@volare-consulting/gimp-mcp"]
     }
   }
 }
@@ -57,7 +58,7 @@ Add the server to your MCP client. For **Claude Desktop**, edit
 For **Claude Code**:
 
 ```bash
-claude mcp add gimp -- npx -y gimp-mcp
+claude mcp add gimp -- npx -y @volare-consulting/gimp-mcp
 ```
 
 Then ask your assistant to "check the GIMP setup" — it will call `gimp_doctor`. If GIMP
